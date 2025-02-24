@@ -11,11 +11,23 @@ function createEditModal() {
   modal.innerHTML = `
     <h3>編輯內容</h3>
     <input type="hidden" id="order-id-input" placeholder="訂單編號" readonly>
-    <input type="text" id="content-input" placeholder="內容">
-    <input type="text" id="value1-input" placeholder="數量">
-    <input type="text" id="value2-input" placeholder="單價">
-    <input type="text" id="value3-input" placeholder="金額">
-    <div>
+    <div class="input-group">
+      <label for="content-input">品名：</label>
+      <input type="text" id="content-input" placeholder="品名">
+    </div>
+    <div class="input-group">
+      <label for="value1-input">數量：</label>
+      <input type="text" id="value1-input" placeholder="數量">
+    </div>
+    <div class="input-group">
+      <label for="value2-input">單價：</label>
+      <input type="text" id="value2-input" placeholder="單價">
+    </div>
+    <div class="input-group">
+      <label for="value3-input">金額：</label>
+      <input type="text" id="value3-input" placeholder="金額">
+    </div>
+    <div class="button-group">
       <button id="save-btn">保存</button>
       <button id="cancel-btn">取消</button>
     </div>
@@ -32,7 +44,7 @@ function createChangeLogModal() {
       <h3>修改記錄 <span class="change-log-count"></span></h3>
       <button id="download-log-btn" class="download-btn" style="display: none;">下載記錄</button>
     </div>
-    <div id="change-log-content"></div>
+    <div id="change-log-content" class="change-log-content"></div>
   `;
 
   // 添加下載按鈕事件
@@ -40,7 +52,6 @@ function createChangeLogModal() {
     const downloadBtn = modal.querySelector('#download-log-btn');
     if (downloadBtn) {
       downloadBtn.onclick = downloadChangeLog;
-      // 初始化時根據是否有修改記錄來決定是否顯示按鈕
       downloadBtn.style.display = changeLog.length > 0 ? 'inline-block' : 'none';
     }
   }, 0);
