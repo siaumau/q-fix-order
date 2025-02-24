@@ -100,28 +100,8 @@
   color: white;
   padding: 2px 8px;
   border-radius: 50%;
-  font-size: 12px;
+  font-size: 14px;
   z-index: 10000;
-}
-
-.batch-replace-button {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  background-color: #0097AA;
-  color: white;
-  padding: 10px 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  z-index: 99999;
-  font-size: 16px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  font-weight: bold;
-}
-
-.batch-replace-button:hover {
-  background-color: #015763;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .batch-replace-modal {

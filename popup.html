@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 250px;
+      padding: 15px;
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+    .menu-title {
+      color: #333;
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #0097AA;
+    }
+    .menu-item {
+      display: block;
+      width: 100%;
+      padding: 12px 15px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 6px;
+      background-color: #0097AA;
+      color: white;
+      cursor: pointer;
+      text-align: left;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .menu-item:hover {
+      background-color: #015763;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .menu-item i {
+      margin-right: 8px;
+      font-size: 16px;
+    }
+    .menu-item.disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="menu-title">訂單處理系統</div>
+  <button id="single-edit-btn" class="menu-item">
+    <i class="fas fa-edit"></i>
+    單筆編輯模式
+  </button>
+  <button id="batch-replace-btn" class="menu-item">
+    <i class="fas fa-tasks"></i>
+    批量替換處理
+  </button>
+  <script src="popup.js"></script>
+</body>
+</html> 
