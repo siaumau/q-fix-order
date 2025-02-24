@@ -182,8 +182,9 @@
   background-color: #45a049;
 }
 
-/* 添加列印樣式規則 */
+/* 修改列印樣式規則 */
 @media print {
+  /* 隱藏操作相關元素 */
   .change-log-modal,
   .change-log-notification,
   .download-btn,
@@ -193,25 +194,33 @@
     display: none !important;
   }
 
-  /* 確保修改過的單元格在列印時顯示正常 */
-  .modified-cell {
-    color: black !important;
-    font-weight: normal !important;
+  /* 重置所有文字顏色為純黑 */
+  * {
+    color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  /* 移除選中行的特殊樣式 */
-  .selected-row {
+  /* 移除所有特殊樣式 */
+  .selected-row,
+  .modified-cell,
+  .modified-row {
     background-color: transparent !important;
     border-left: none !important;
+    color: #000 !important;
+    font-weight: normal !important;
   }
 
   /* 優化表格列印樣式 */
   table {
     box-shadow: none !important;
+    border-collapse: collapse !important;
   }
 
   th, td {
-    border: 1px solid #000 !important;
+    /* border: 1px solid #000 !important; */
+    color: #000 !important;
+    background-color: transparent !important;
   }
 
   /* 移除懸停效果 */

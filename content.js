@@ -127,6 +127,26 @@ function initializePlugin() {
   // 應用表格樣式
   applyTableStyles();
   
+  // 修改列印前的處理
+  window.addEventListener('beforeprint', function() {
+    // 保存所有修改過的單元格，以便之後恢復
+    window.modifiedCells = Array.from(document.querySelectorAll('.modified-cell')).map(cell => {
+      cell.classList.remove('modified-cell');
+      return cell;
+    });
+  });
+
+  // 列印後恢復修改標記
+  window.addEventListener('afterprint', function() {
+    // 恢復修改標記
+    if (window.modifiedCells) {
+      window.modifiedCells.forEach(cell => {
+        cell.classList.add('modified-cell');
+      });
+      window.modifiedCells = null;
+    }
+  });
+  
   console.log('插件初始化完成');
 }
 
