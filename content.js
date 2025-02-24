@@ -27,7 +27,7 @@ function createChangeLogModal() {
   modal.innerHTML = `
     <div class="change-log-header">
       <h3>修改記錄 <span class="change-log-count"></span></h3>
-      <button id="download-log-btn" class="download-btn">下載記錄</button>
+      <button id="download-log-btn" class="download-btn" style="display: none;">下載記錄</button>
     </div>
     <div id="change-log-content"></div>
   `;
@@ -37,6 +37,8 @@ function createChangeLogModal() {
     const downloadBtn = modal.querySelector('#download-log-btn');
     if (downloadBtn) {
       downloadBtn.onclick = downloadChangeLog;
+      // 初始化時根據是否有修改記錄來決定是否顯示按鈕
+      downloadBtn.style.display = changeLog.length > 0 ? 'inline-block' : 'none';
     }
   }, 0);
 
@@ -58,20 +60,33 @@ function updateChangeLog() {
   notification.textContent = changeLog.length;
   notification.style.display = changeLog.length > 0 ? 'block' : 'none';
 
+  let  downloadbtnSHOW = document.querySelector('.download-btn');
+  downloadbtnSHOW.style.display = changeLog.length > 0 ? 'block' : 'none';
+
+ 
+
+  // 更新下載按鈕顯示狀態
+  const downloadBtn = document.getElementById('download-log-btn');
+  if (downloadBtn) {
+    downloadBtn.style.display = changeLog.length > 0 ? 'inline-block' : 'none';
+  }
+
   // 更新修改記錄內容
-  logContent.innerHTML = changeLog.map((log, index) => `
-    <div class="change-log-item" data-index="${index}">
-      <div class="header">
-        <p>訂單編號: ${log.orderId}</p>
-        <p>${log.timestamp}</p>
+  logContent.innerHTML = changeLog.length > 0 ? 
+    changeLog.map((log, index) => `
+      <div class="change-log-item" data-index="${index}">
+        <div class="header">
+          <p>訂單編號: ${log.orderId}</p>
+          <p>${log.timestamp}</p>
+        </div>
+        <div class="details">
+          <ul>
+            ${log.changes.map(change => `<li>${change}</li>`).join('')}
+          </ul>
+        </div>
       </div>
-      <div class="details">
-        <ul>
-          ${log.changes.map(change => `<li>${change}</li>`).join('')}
-        </ul>
-      </div>
-    </div>
-  `).join('');
+    `).join('') :
+    '<p>尚無修改記錄</p>';
 
   // 添加點擊展開/收合事件
   logContent.querySelectorAll('.change-log-item').forEach(item => {
@@ -85,10 +100,10 @@ function updateChangeLog() {
 function initializePlugin() {
   console.log('插件初始化中...'); // 用於調試
   
-  // 創建並添加批量替換按鈕
+  // 創建並添加批量替換處理按鈕
   const batchReplaceButton = document.createElement('div');
   batchReplaceButton.className = 'batch-replace-button';
-  batchReplaceButton.textContent = '批量替換';
+  batchReplaceButton.textContent = '批量替換處理';
   batchReplaceButton.onclick = showBatchReplaceModal;
   document.body.appendChild(batchReplaceButton);
 
@@ -264,12 +279,12 @@ function createBackdrop() {
   return backdrop;
 }
 
-// 創建批量替換模態框
+// 創建批量替換處理模態框
 function createBatchReplaceModal() {
   const modal = document.createElement('div');
   modal.className = 'batch-replace-modal';
   modal.innerHTML = `
-    <h3>批量替換內容</h3>
+    <h3>批量替換處理內容</h3>
     <div>
       <p>請輸入要搜尋的商品名稱：</p>
       <textarea id="search-content" placeholder="例如：2%水楊酸精華液 118ml"></textarea>
@@ -291,7 +306,7 @@ function createBatchReplaceModal() {
   return modal;
 }
 
-// 顯示批量替換模態框
+// 顯示批量替換處理模態框
 function showBatchReplaceModal() {
   const backdrop = createBackdrop();
   const modal = createBatchReplaceModal();
@@ -392,7 +407,7 @@ function showPreview(matchedRows) {
   `;
 }
 
-// 修改批量替換函數
+// 修改批量替換處理函數
 function batchReplace(matchedRows, replaceContent) {
   matchedRows.forEach(row => {
     const cells = row.getElementsByTagName('td');
@@ -419,7 +434,7 @@ function batchReplace(matchedRows, replaceContent) {
   updateChangeLog();
 }
 
-// 關閉批量替換模態框
+// 關閉批量替換處理模態框
 function closeBatchReplaceModal() {
   const modal = document.querySelector('.batch-replace-modal');
   const backdrop = document.querySelector('.modal-backdrop');
@@ -427,50 +442,35 @@ function closeBatchReplaceModal() {
   if (backdrop) backdrop.remove();
 }
 
-// 添加下載修改記錄函數
+// 下載修改記錄函數
 function downloadChangeLog() {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  
-  // 設置標題
-  doc.setFontSize(16);
-  doc.text('修改記錄', pageWidth/2, 20, { align: 'center' });
-  
-  let yPosition = 40;
-  const lineHeight = 7;
+  try {
+    // 準備文字內容
+    const content = changeLog.map(log => {
+      const header = `訂單編號: ${log.orderId}\n時間: ${log.timestamp}\n修改內容:`;
+      const changes = log.changes.map(change => 
+        `  ${change.replace(/<br>/g, ' → ')}`
+      ).join('\n');
+      return `${header}\n${changes}\n------------------------`;
+    }).join('\n\n');
 
-  // 添加每筆修改記錄
-  changeLog.forEach((log, index) => {
-    // 檢查是否需要新頁
-    if (yPosition > 250) {
-      doc.addPage();
-      yPosition = 20;
-    }
-
-    doc.setFontSize(12);
-    doc.text(`訂單編號: ${log.orderId}`, 20, yPosition);
-    yPosition += lineHeight;
-    doc.text(`修改時間: ${log.timestamp}`, 20, yPosition);
-    yPosition += lineHeight;
-    doc.text('修改內容:', 20, yPosition);
-    yPosition += lineHeight;
-
-    // 添加修改內容
-    log.changes.forEach(change => {
-      const lines = doc.splitTextToSize(change.replace(/<br>/g, ' → '), pageWidth - 40);
-      lines.forEach(line => {
-        if (yPosition > 250) {
-          doc.addPage();
-          yPosition = 20;
-        }
-        doc.text(line, 30, yPosition);
-        yPosition += lineHeight;
-      });
-    });
-
-    yPosition += lineHeight;
-  });
-
-  // 下載 PDF
-  doc.save(`修改記錄_${new Date().toLocaleDateString()}.pdf`);
+    // 創建 Blob
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    
+    // 創建下載連結
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `修改記錄_${new Date().toLocaleDateString()}.txt`;
+    
+    // 觸發下載
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // 清理 URL
+    URL.revokeObjectURL(link.href);
+  } catch (error) {
+    console.error('生成檔案時發生錯誤:', error);
+    alert('下載檔案時發生錯誤，請稍後再試');
+  }
 } 

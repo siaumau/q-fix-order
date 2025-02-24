@@ -108,7 +108,7 @@
   position: fixed;
   right: 20px;
   bottom: 20px;
-  background-color: #4CAF50;
+  background-color: #0097AA;
   color: white;
   padding: 10px 20px;
   border-radius: 5px;
@@ -120,7 +120,7 @@
 }
 
 .batch-replace-button:hover {
-  background-color: #45a049;
+  background-color: #015763;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
@@ -157,7 +157,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  /* margin-bottom: 15px; */
 }
 
 .change-log-header h3 {
