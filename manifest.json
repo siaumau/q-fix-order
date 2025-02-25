@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "表格內容編輯器",
+  "name": "寶拉 表格內容編輯器",
   "version": "1.0",
   "description": "允許編輯網頁表格內容的 Chrome 擴充功能",
   "permissions": [

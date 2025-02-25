@@ -469,7 +469,7 @@ function downloadChangeLog() {
     const now = new Date();
     const dateString = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
 
-    // 準備文字內容
+    // 下載修改記錄 txt
     const content = changeLog.map(log => {
       const header = `訂單編號: ${log.orderId}\n時間: ${log.timestamp}\n修改內容:`;
       const changes = log.changes.map(change => 
@@ -478,21 +478,54 @@ function downloadChangeLog() {
       return `${header}\n${changes}\n------------------------`;
     }).join('\n\n');
 
-    // 創建 Blob
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const logBlob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const logLink = document.createElement('a');
+    logLink.href = URL.createObjectURL(logBlob);
+    logLink.download = `修改記錄_${dateString}.txt`;
+    document.body.appendChild(logLink);
+    logLink.click();
+    document.body.removeChild(logLink);
+    URL.revokeObjectURL(logLink.href);
+
+    // 下載完整的 HTML 頁面
+    // 創建一個新的文檔副本
+    const clonedDoc = document.cloneNode(true);
     
-    // 創建下載連結，檔名加入時分秒
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `修改記錄_${dateString}.txt`;
-    
-    // 觸發下載
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // 清理 URL
-    URL.revokeObjectURL(link.href);
+    // 移除所有插件添加的元素
+    const elementsToRemove = [
+      '.change-log-modal',
+      '.change-log-notification',
+      '.download-btn',
+      '.batch-replace-modal',
+      '.modal-backdrop',
+      '.edit-modal'
+    ];
+
+    elementsToRemove.forEach(selector => {
+      const elements = clonedDoc.querySelectorAll(selector);
+      elements.forEach(el => el.remove());
+    });
+
+    // 保留修改標記的樣式
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+      .modified-cell { color: #0097AA !important; font-weight: bold; }
+    `;
+    clonedDoc.head.appendChild(styleElement);
+
+    // 獲取完整的 HTML 內容
+    const htmlContent = clonedDoc.documentElement.outerHTML;
+
+    // 下載 HTML
+    const htmlBlob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const htmlLink = document.createElement('a');
+    htmlLink.href = URL.createObjectURL(htmlBlob);
+    htmlLink.download = `訂單內容_${dateString}.html`;
+    document.body.appendChild(htmlLink);
+    htmlLink.click();
+    document.body.removeChild(htmlLink);
+    URL.revokeObjectURL(htmlLink.href);
+
   } catch (error) {
     console.error('生成檔案時發生錯誤:', error);
     alert('下載檔案時發生錯誤，請稍後再試');
