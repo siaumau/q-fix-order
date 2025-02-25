@@ -299,25 +299,58 @@ function createBackdrop() {
   return backdrop;
 }
 
-// 創建批量替換處理模態框
+// 修改創建批量替換處理模態框函數
 function createBatchReplaceModal() {
   const modal = document.createElement('div');
   modal.className = 'batch-replace-modal';
   modal.innerHTML = `
     <h3>批量替換處理內容</h3>
-    <div>
-      <p>請輸入要搜尋的商品名稱：</p>
-      <textarea id="search-content" placeholder="例如：2%水楊酸精華液 118ml"></textarea>
+    <div class="search-section">
+      <h4>搜尋條件：</h4>
+      <div class="input-group">
+        <label for="search-content">商品名稱：</label>
+        <textarea id="search-content" placeholder="請輸入要搜尋的商品名稱（必填）"></textarea>
+      </div>
+      <div class="input-group">
+        <label for="search-value1">數量：</label>
+        <input type="text" id="search-value1" placeholder="選填">
+      </div>
+      <div class="input-group">
+        <label for="search-value2">單價：</label>
+        <input type="text" id="search-value2" placeholder="選填">
+      </div>
+      <div class="input-group">
+        <label for="search-value3">金額：</label>
+        <input type="text" id="search-value3" placeholder="選填">
+      </div>
     </div>
-    <div>
-      <p>替換為：</p>
-      <textarea id="replace-content" placeholder="請輸入新的商品名稱"></textarea>
+
+    <div class="replace-section">
+      <h4>替換為：</h4>
+      <div class="input-group">
+        <label for="replace-content">商品名稱：</label>
+        <textarea id="replace-content" placeholder="請輸入新的商品名稱"></textarea>
+      </div>
+      <div class="input-group">
+        <label for="replace-value1">數量：</label>
+        <input type="text" id="replace-value1" placeholder="不填則保持原值">
+      </div>
+      <div class="input-group">
+        <label for="replace-value2">單價：</label>
+        <input type="text" id="replace-value2" placeholder="不填則保持原值">
+      </div>
+      <div class="input-group">
+        <label for="replace-value3">金額：</label>
+        <input type="text" id="replace-value3" placeholder="不填則保持原值">
+      </div>
     </div>
+
     <div id="search-preview" class="search-preview">
-      <p>找到的匹配項：</p>
+      <h4>找到的匹配項：</h4>
       <div id="preview-content"></div>
     </div>
-    <div>
+    
+    <div class="button-group">
       <button id="preview-btn">預覽</button>
       <button id="replace-btn">執行替換</button>
       <button id="cancel-replace-btn">取消</button>
@@ -333,18 +366,88 @@ function showBatchReplaceModal() {
   document.body.appendChild(backdrop);
   document.body.appendChild(modal);
 
-  // 預覽按鈕事件
+  // 修改預覽按鈕事件
   document.getElementById('preview-btn').onclick = function() {
     const searchContent = document.getElementById('search-content').value.trim();
-    const matchedRows = findMatchingRows(searchContent);
-    showPreview(matchedRows);
+    if (!searchContent) {
+      alert('請輸入要搜尋的商品名稱');
+      return;
+    }
+
+    // 先只用商品名稱來搜尋
+    const searchValues = {
+      content: searchContent,
+      value1: '',
+      value2: '',
+      value3: ''
+    };
+    
+    const matchedRows = findMatchingRows(searchValues);
+    
+    // 如果找到匹配的行，自動填入第一個匹配行的值
+    if (matchedRows.length > 0) {
+      const firstRow = matchedRows[0];
+      const cells = firstRow.getElementsByTagName('td');
+      
+      // 填入搜尋條件的輸入框
+      const searchValue1 = document.getElementById('search-value1');
+      const searchValue2 = document.getElementById('search-value2');
+      const searchValue3 = document.getElementById('search-value3');
+
+      // 如果搜尋條件的輸入框為空，則填入原始值
+      if (!searchValue1.value.trim()) {
+        searchValue1.value = cells[1].textContent.trim();
+      }
+      if (!searchValue2.value.trim()) {
+        searchValue2.value = cells[2].textContent.trim();
+      }
+      if (!searchValue3.value.trim()) {
+        searchValue3.value = cells[3].textContent.trim();
+      }
+      
+      // 填入替換值的輸入框
+      const replaceContent = document.getElementById('replace-content');
+      const replaceValue1 = document.getElementById('replace-value1');
+      const replaceValue2 = document.getElementById('replace-value2');
+      const replaceValue3 = document.getElementById('replace-value3');
+
+      if (!replaceContent.value.trim()) {
+        replaceContent.value = cells[0].textContent.trim();
+      }
+      if (!replaceValue1.value.trim()) {
+        replaceValue1.value = cells[1].textContent.trim();
+      }
+      if (!replaceValue2.value.trim()) {
+        replaceValue2.value = cells[2].textContent.trim();
+      }
+      if (!replaceValue3.value.trim()) {
+        replaceValue3.value = cells[3].textContent.trim();
+      }
+
+      // 使用更新後的搜尋值重新搜尋
+      const updatedSearchValues = {
+        content: searchContent,
+        value1: searchValue1.value.trim(),
+        value2: searchValue2.value.trim(),
+        value3: searchValue3.value.trim()
+      };
+      
+      const updatedMatchedRows = findMatchingRows(updatedSearchValues);
+      showPreview(updatedMatchedRows);
+    } else {
+      showPreview([]);
+    }
   };
 
   // 替換按鈕事件
   document.getElementById('replace-btn').onclick = function() {
-    const searchContent = document.getElementById('search-content').value.trim();
-    const replaceContent = document.getElementById('replace-content').value.trim();
-    const matchedRows = findMatchingRows(searchContent);
+    const searchValues = {
+      content: document.getElementById('search-content').value.trim(),
+      value1: document.getElementById('search-value1').value.trim(),
+      value2: document.getElementById('search-value2').value.trim(),
+      value3: document.getElementById('search-value3').value.trim()
+    };
+    const matchedRows = findMatchingRows(searchValues);
     console.table(matchedRows);
     
     if (matchedRows.length === 0) {
@@ -352,8 +455,8 @@ function showBatchReplaceModal() {
       return;
     }
 
-    if (confirm(`確定要替換這 ${matchedRows.length/2} 筆資料嗎？`)) {
-      batchReplace(matchedRows, replaceContent);
+    if (confirm(`確定要替換這 ${matchedRows.length} 筆資料嗎？`)) {
+      batchReplace(matchedRows);
       closeBatchReplaceModal();
     }
   };
@@ -364,28 +467,28 @@ function showBatchReplaceModal() {
 }
 
 // 修改查找匹配的行函數
-function findMatchingRows(searchContent) {
+function findMatchingRows(searchValues) {
   const rows = document.querySelectorAll('tr');
   
-  // 先找出第一個 td 內容相符的所有行
-  const firstTdMatches = Array.from(rows).filter(row => {
+  // 過濾符合條件的行
+  return Array.from(rows).filter(row => {
     const cells = row.getElementsByTagName('td');
-    if (cells.length === 0) return false;
-    return cells[0].textContent.trim() === searchContent;
+    if (cells.length < 4) return false;
+
+    // 檢查每個欄位是否符合搜尋條件
+    const matches = {
+      content: !searchValues.content || cells[0].textContent.trim() === searchValues.content,
+      value1: !searchValues.value1 || cells[1].textContent.trim() === searchValues.value1,
+      value2: !searchValues.value2 || cells[2].textContent.trim() === searchValues.value2,
+      value3: !searchValues.value3 || cells[3].textContent.trim() === searchValues.value3
+    };
+
+    // 商品名稱必須匹配，其他欄位如果有填寫也必須匹配
+    return matches.content && matches.value1 && matches.value2 && matches.value3;
   });
-
-  if (firstTdMatches.length === 0) return [];
-
-  // 獲取第一個匹配行的完整內容作為比較基準
-  const firstMatchFullContent = firstTdMatches[0].textContent.trim();
-
-  // 在第一個 td 相符的行中，找出整列內容完全相同的行
-  return firstTdMatches.filter(row => 
-    row.textContent.trim() === firstMatchFullContent
-  );
 }
 
-// 修改預覽顯示函數，修正匹配資訊的計算
+// 修改預覽顯示函數
 function showPreview(matchedRows) {
   const previewContent = document.getElementById('preview-content');
   if (matchedRows.length === 0) {
@@ -393,34 +496,62 @@ function showPreview(matchedRows) {
     return;
   }
 
-  const searchContent = document.getElementById('search-content').value.trim();
-  // 修正：只計算第一欄內容相符的數量
-  const firstTdMatches = Array.from(document.querySelectorAll('tr')).filter(row => {
-    const firstCell = row.querySelector('td');
-    return firstCell && firstCell.textContent.trim() === searchContent;
-  }).length;
+  // 獲取搜尋值
+  const searchValues = {
+    content: document.getElementById('search-content').value.trim(),
+    value1: document.getElementById('search-value1').value.trim(),
+    value2: document.getElementById('search-value2').value.trim(),
+    value3: document.getElementById('search-value3').value.trim()
+  };
+
+  // 獲取替換值
+  const replaceValues = {
+    content: document.getElementById('replace-content').value.trim(),
+    value1: document.getElementById('replace-value1').value.trim(),
+    value2: document.getElementById('replace-value2').value.trim(),
+    value3: document.getElementById('replace-value3').value.trim()
+  };
 
   previewContent.innerHTML = `
-    <p>商品名稱 "${searchContent}" 找到 ${firstTdMatches} 筆資料</p>
-    <p>其中完全相同的資料有 ${matchedRows.length} 筆：</p>
-    <div class="preview-table" style="overflow-x: auto;">
-      <table style="width: 100%; border-collapse: collapse;">
+    <p>找到 ${matchedRows.length} 筆符合的資料：</p>
+    <div class="preview-table">
+      <table>
         <thead>
           <tr>
-            <th style="padding: 5px; border-bottom: 2px solid #ddd;">商品名稱</th>
-            <th style="padding: 5px; border-bottom: 2px solid #ddd;">數量</th>
-            <th style="padding: 5px; border-bottom: 2px solid #ddd;">單價</th>
-            <th style="padding: 5px; border-bottom: 2px solid #ddd;">金額</th>
+            <th>欄位</th>
+            <th>原始值</th>
+            <th>替換後</th>
           </tr>
         </thead>
         <tbody>
-          ${matchedRows.map(row => `
+          ${searchValues.content ? `
             <tr>
-              ${Array.from(row.getElementsByTagName('td')).map(cell => 
-                `<td style="padding: 5px; border-bottom: 1px solid #eee;">${cell.textContent.trim()}</td>`
-              ).join('')}
+              <td>商品名稱</td>
+              <td>${searchValues.content}</td>
+              <td>${replaceValues.content || '(保持原值)'}</td>
             </tr>
-          `).join('')}
+          ` : ''}
+          ${searchValues.value1 ? `
+            <tr>
+              <td>數量</td>
+              <td>${searchValues.value1}</td>
+              <td>${replaceValues.value1 || '(保持原值)'}</td>
+            </tr>
+          ` : ''}
+          ${searchValues.value2 ? `
+            <tr>
+              <td>單價</td>
+              <td>${searchValues.value2}</td>
+              <td>${replaceValues.value2 || '(保持原值)'}</td>
+            </tr>
+          ` : ''}
+          ${searchValues.value3 ? `
+            <tr>
+              <td>金額</td>
+              <td>${searchValues.value3}</td>
+              <td>${replaceValues.value3 || '(保持原值)'}</td>
+            </tr>
+          ` : ''}
         </tbody>
       </table>
     </div>
@@ -428,23 +559,58 @@ function showPreview(matchedRows) {
 }
 
 // 修改批量替換處理函數
-function batchReplace(matchedRows, replaceContent) {
+function batchReplace(matchedRows) {
+  // 獲取替換值
+  const replaceValues = {
+    content: document.getElementById('replace-content').value.trim(),
+    value1: document.getElementById('replace-value1').value.trim(),
+    value2: document.getElementById('replace-value2').value.trim(),
+    value3: document.getElementById('replace-value3').value.trim()
+  };
+
   matchedRows.forEach(row => {
     const cells = row.getElementsByTagName('td');
-    if (cells.length > 0) {
-      const oldContent = cells[0].textContent.trim();
-      cells[0].textContent = replaceContent;
-      cells[0].classList.add('modified-cell');
+    if (cells.length < 4) return;
 
-      // 使用新的方式獲取訂單編號
+    // 記錄修改內容
+    const changes = [];
+    const oldValues = {
+      content: cells[0].textContent.trim(),
+      value1: cells[1].textContent.trim(),
+      value2: cells[2].textContent.trim(),
+      value3: cells[3].textContent.trim()
+    };
+
+    // 只替換有填寫新值的欄位，且只在值真的改變時才標記
+    if (replaceValues.content && replaceValues.content !== oldValues.content) {
+      cells[0].textContent = replaceValues.content;
+      cells[0].classList.add('modified-cell');
+      changes.push(`商品名稱: ${oldValues.content} -> ${replaceValues.content}`);
+    }
+    if (replaceValues.value1 && replaceValues.value1 !== oldValues.value1) {
+      cells[1].textContent = replaceValues.value1;
+      cells[1].classList.add('modified-cell');
+      changes.push(`數量: ${oldValues.value1} -> ${replaceValues.value1}`);
+    }
+    if (replaceValues.value2 && replaceValues.value2 !== oldValues.value2) {
+      cells[2].textContent = replaceValues.value2;
+      cells[2].classList.add('modified-cell');
+      changes.push(`單價: ${oldValues.value2} -> ${replaceValues.value2}`);
+    }
+    if (replaceValues.value3 && replaceValues.value3 !== oldValues.value3) {
+      cells[3].textContent = replaceValues.value3;
+      cells[3].classList.add('modified-cell');
+      changes.push(`金額: ${oldValues.value3} -> ${replaceValues.value3}`);
+    }
+
+    // 只有在有實際修改時才記錄修改歷史
+    if (changes.length > 0) {
       const orderId = getOrderId(row);
-      
-      // 只有在能獲取到有效訂單編號時才記錄
       if (!orderId.startsWith('未知訂單')) {
         changeLog.push({
           orderId: orderId,
           timestamp: new Date().toLocaleString(),
-          changes: [`商品名稱:<br> ${oldContent} -> ${replaceContent}`]
+          changes: changes
         });
       }
     }
