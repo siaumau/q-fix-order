@@ -4,6 +4,46 @@ let changeLog = [];
 // 添加編輯模式狀態
 let editMode = '';
 
+// 添加訂單項目記錄功能
+function recordOrderItemChange(action, itemData, orderId) {
+  if (!orderId || orderId.startsWith('未知訂單')) {
+    console.warn('無法記錄修改：找不到有效的訂單編號');
+    return;
+  }
+  
+  // 格式化訂單項目描述
+  let itemDescription = '';
+  if (action === 'add') {
+    itemDescription = `新增項目：${itemData.content || '未知商品'}`;
+    if (itemData.value1) itemDescription += `，數量：${itemData.value1}`;
+    if (itemData.value2) itemDescription += `，單價：${itemData.value2}`;
+    if (itemData.value3) itemDescription += `，金額：${itemData.value3}`;
+  } else if (action === 'delete') {
+    itemDescription = `刪除項目：${itemData.content || '未知商品'}`;
+    if (itemData.value1) itemDescription += `，數量：${itemData.value1}`;
+    if (itemData.value2) itemDescription += `，單價：${itemData.value2}`;
+    if (itemData.value3) itemDescription += `，金額：${itemData.value3}`;
+  } else if (action === 'update') {
+    itemDescription = `修改項目：${itemData.oldContent || '未知商品'} -> ${itemData.newContent || '未知商品'}`;
+    if (itemData.oldValue1 && itemData.newValue1) 
+      itemDescription += `，數量：${itemData.oldValue1} -> ${itemData.newValue1}`;
+    if (itemData.oldValue2 && itemData.newValue2) 
+      itemDescription += `，單價：${itemData.oldValue2} -> ${itemData.newValue2}`;
+    if (itemData.oldValue3 && itemData.newValue3) 
+      itemDescription += `，金額：${itemData.oldValue3} -> ${itemData.newValue3}`;
+  }
+  
+  // 添加到修改記錄
+  changeLog.push({
+    orderId: orderId,
+    timestamp: new Date().toLocaleString(),
+    changes: [itemDescription]
+  });
+  
+  // 更新修改記錄視窗
+  updateChangeLog();
+}
+
 // 創建編輯模態框
 function createEditModal() {
   const modal = document.createElement('div');
@@ -28,6 +68,7 @@ function createEditModal() {
       <input type="text" id="value3-input" placeholder="金額">
     </div>
     <div class="button-group">
+      <button id="delete-btn">刪除</button>
       <button id="save-btn">保存</button>
       <button id="cancel-btn">取消</button>
     </div>
@@ -64,6 +105,22 @@ function updateChangeLog() {
   const logContent = document.getElementById('change-log-content');
   if (!logContent) return;
 
+  // 獲取修改記錄視窗
+  const changeLogModal = document.querySelector('.change-log-modal');
+
+  // 根據是否有修改記錄來決定顯示狀態
+  if (changeLog.length > 0) {
+    // 有修改記錄時顯示視窗
+    if (changeLogModal) {
+      changeLogModal.style.display = 'block';
+    }
+  } else {
+    // 沒有修改記錄時隱藏視窗
+    if (changeLogModal) {
+      changeLogModal.style.display = 'none';
+    }
+  }
+
   // 更新通知數字
   let notification = document.querySelector('.change-log-notification');
   if (!notification) {
@@ -74,10 +131,10 @@ function updateChangeLog() {
   notification.textContent = changeLog.length;
   notification.style.display = changeLog.length > 0 ? 'block' : 'none';
 
-  let  downloadbtnSHOW = document.querySelector('.download-btn');
-  downloadbtnSHOW.style.display = changeLog.length > 0 ? 'block' : 'none';
-
- 
+  let downloadbtnSHOW = document.querySelector('.download-btn');
+  if (downloadbtnSHOW) {
+    downloadbtnSHOW.style.display = changeLog.length > 0 ? 'block' : 'none';
+  }
 
   // 更新下載按鈕顯示狀態
   const downloadBtn = document.getElementById('download-log-btn');
@@ -114,8 +171,9 @@ function updateChangeLog() {
 function initializePlugin() {
   console.log('插件初始化中...');
   
-  // 創建並添加修改記錄視窗
+  // 創建並添加修改記錄視窗，但初始時隱藏
   const changeLogModal = createChangeLogModal();
+  changeLogModal.style.display = 'none'; // 初始時隱藏
   document.body.appendChild(changeLogModal);
 
   // 創建通知元素
@@ -126,6 +184,9 @@ function initializePlugin() {
   
   // 應用表格樣式
   applyTableStyles();
+  
+  // 添加頁尾編輯功能
+  addPagerEditButtons();
   
   // 修改列印前的處理
   window.addEventListener('beforeprint', function() {
@@ -164,120 +225,146 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     showBatchReplaceModal();
   } else if (request.action === "enableSingleEdit") {
     editMode = 'single';
+    // 添加編輯模式樣式到body
+    document.body.classList.add('edit-mode');
   }
 });
 
 // 修改事件監聽
 document.addEventListener('click', function(e) {
-  // 只在單筆編輯模式下響應點擊事件
-  if (editMode !== 'single') return;
-  
-  if (e.target.closest('tr')) {
+  // 處理表格行點擊事件 (僅在編輯模式下)
+  if (e.target.closest('tr') && editMode === 'single') {
     const row = e.target.closest('tr');
-    
-    // 移除其他行的選中狀態
-    document.querySelectorAll('tr').forEach(tr => {
-      tr.classList.remove('selected-row');
-    });
-    
-    // 添加選中狀態
-    row.classList.add('selected-row');
-    
-    // 創建並顯示編輯模態框
-    const backdrop = createBackdrop();
-    const modal = createEditModal();
-    document.body.appendChild(backdrop);
-    document.body.appendChild(modal);
-    
-    // 獲取當前行的數據
     const cells = row.getElementsByTagName('td');
+    
+    // 只處理包含td的行（非表頭行）
     if (cells.length > 0) {
-      // 使用新的方式獲取訂單編號
-      const orderId = getOrderId(row);
-      document.getElementById('order-id-input').value = orderId;
-      document.getElementById('content-input').value = cells[0].textContent.trim();
-      document.getElementById('value1-input').value = cells[1]?.textContent.trim() || '';
-      document.getElementById('value2-input').value = cells[2]?.textContent.trim() || '';
-      document.getElementById('value3-input').value = cells[3]?.textContent.trim() || '';
-    }
-    
-    // 保存按鈕事件
-    document.getElementById('save-btn').onclick = function() {
-      // 獲取原始內容用於記錄
-      const oldValues = {
-        content: cells[0].textContent.trim(),
-        value1: cells[1]?.textContent.trim() || '',
-        value2: cells[2]?.textContent.trim() || '',
-        value3: cells[3]?.textContent.trim() || ''
-      };
-
-      // 獲取新的輸入值
-      const newValues = {
-        content: document.getElementById('content-input').value.trim(),
-        value1: document.getElementById('value1-input').value.trim(),
-        value2: document.getElementById('value2-input').value.trim(),
-        value3: document.getElementById('value3-input').value.trim()
-      };
-
-      // 更新內容並標記修改的單元格
-      if (oldValues.content !== newValues.content) {
-        cells[0].textContent = newValues.content;
-        cells[0].classList.add('modified-cell');
+      // 移除其他行的選中狀態
+      document.querySelectorAll('tr').forEach(tr => {
+        tr.classList.remove('selected-row');
+      });
+      
+      // 添加選中狀態
+      row.classList.add('selected-row');
+      
+      // 創建並顯示編輯模態框
+      const backdrop = createBackdrop();
+      const modal = createEditModal();
+      document.body.appendChild(backdrop);
+      document.body.appendChild(modal);
+      
+      // 獲取當前行的數據
+      if (cells.length > 0) {
+        // 使用新的方式獲取訂單編號
+        const orderId = getOrderId(row);
+        document.getElementById('order-id-input').value = orderId;
+        document.getElementById('content-input').value = cells[0].textContent.trim();
+        document.getElementById('value1-input').value = cells[1]?.textContent.trim() || '';
+        document.getElementById('value2-input').value = cells[2]?.textContent.trim() || '';
+        document.getElementById('value3-input').value = cells[3]?.textContent.trim() || '';
       }
-
-      // 檢查並更新其他單元格
-      if (cells[1] && oldValues.value1 !== newValues.value1) {
-        cells[1].textContent = newValues.value1;
-        cells[1].classList.add('modified-cell');
-      }
-
-      if (cells[2] && oldValues.value2 !== newValues.value2) {
-        cells[2].textContent = newValues.value2;
-        cells[2].classList.add('modified-cell');
-      }
-
-      if (cells[3] && oldValues.value3 !== newValues.value3) {
-        cells[3].textContent = newValues.value3;
-        cells[3].classList.add('modified-cell');
-      }
-
-      // 添加到修改記錄（只記錄有修改的欄位）
-      const changes = [];
-      if (oldValues.content !== newValues.content) {
-        changes.push(`內容: ${oldValues.content} -><br> ${newValues.content}`);
-      }
-      if (oldValues.value1 !== newValues.value1) {
-        changes.push(`數量: ${oldValues.value1} -> ${newValues.value1}`);
-      }
-      if (oldValues.value2 !== newValues.value2) {
-        changes.push(`單價: ${oldValues.value2} -> ${newValues.value2}`);
-      }
-      if (oldValues.value3 !== newValues.value3) {
-        changes.push(`金額: ${oldValues.value3} ->${newValues.value3}`);
-      }
-
-      if (changes.length > 0) {
-        const orderId = document.getElementById('order-id-input').value;
-        // 只有在能獲取到有效訂單編號時才記錄
-        if (!orderId.startsWith('未知訂單')) {
-          changeLog.push({
-            orderId: orderId,
-            timestamp: new Date().toLocaleString(),
-            changes: changes
-          });
+      
+      // 刪除按鈕事件
+      document.getElementById('delete-btn').onclick = function() {
+        if (confirm('確定要刪除這筆資料嗎？')) {
+          const orderId = document.getElementById('order-id-input').value;
+          const deleteData = {
+            content: cells[0].textContent.trim(),
+            value1: cells[1]?.textContent.trim() || '',
+            value2: cells[2]?.textContent.trim() || '',
+            value3: cells[3]?.textContent.trim() || ''
+          };
+          
+          // 記錄刪除操作
+          recordOrderItemChange('delete', deleteData, orderId);
+          
+          // 移除該行
+          row.remove();
+          
+          // 關閉模態框
+          closeModal();
         }
-      }
+      };
+      
+      // 保存按鈕事件
+      document.getElementById('save-btn').onclick = function() {
+        // 獲取原始內容用於記錄
+        const oldValues = {
+          content: cells[0].textContent.trim(),
+          value1: cells[1]?.textContent.trim() || '',
+          value2: cells[2]?.textContent.trim() || '',
+          value3: cells[3]?.textContent.trim() || ''
+        };
 
-      // 更新修改記錄視窗
-      updateChangeLog();
-      closeModal();
-    };
-    
-    // 取消按鈕事件
-    document.getElementById('cancel-btn').onclick = closeModal;
-    
-    // 點擊背景關閉模態框
-    backdrop.onclick = closeModal;
+        // 獲取新的輸入值
+        const newValues = {
+          content: document.getElementById('content-input').value.trim(),
+          value1: document.getElementById('value1-input').value.trim(),
+          value2: document.getElementById('value2-input').value.trim(),
+          value3: document.getElementById('value3-input').value.trim()
+        };
+
+        // 檢查是否有實際修改
+        let hasChanges = false;
+        if (oldValues.content !== newValues.content) hasChanges = true;
+        if (oldValues.value1 !== newValues.value1) hasChanges = true;
+        if (oldValues.value2 !== newValues.value2) hasChanges = true;
+        if (oldValues.value3 !== newValues.value3) hasChanges = true;
+
+        if (hasChanges) {
+          // 更新內容並標記修改的單元格
+          if (oldValues.content !== newValues.content) {
+            cells[0].textContent = newValues.content;
+            cells[0].classList.add('modified-cell');
+          }
+
+          // 檢查並更新其他單元格
+          if (cells[1] && oldValues.value1 !== newValues.value1) {
+            cells[1].textContent = newValues.value1;
+            cells[1].classList.add('modified-cell');
+          }
+
+          if (cells[2] && oldValues.value2 !== newValues.value2) {
+            cells[2].textContent = newValues.value2;
+            cells[2].classList.add('modified-cell');
+          }
+
+          if (cells[3] && oldValues.value3 !== newValues.value3) {
+            cells[3].textContent = newValues.value3;
+            cells[3].classList.add('modified-cell');
+          }
+
+          // 使用新的記錄函數記錄整行修改
+          const orderId = document.getElementById('order-id-input').value;
+          if (!orderId.startsWith('未知訂單')) {
+            // 創建記錄數據
+            const updateData = {
+              oldContent: oldValues.content,
+              newContent: newValues.content,
+              oldValue1: oldValues.value1,
+              newValue1: newValues.value1,
+              oldValue2: oldValues.value2,
+              newValue2: newValues.value2,
+              oldValue3: oldValues.value3,
+              newValue3: newValues.value3
+            };
+            
+            // 記錄修改
+            recordOrderItemChange('update', updateData, orderId);
+          }
+        }
+
+        // 更新修改記錄視窗
+        updateChangeLog();
+        closeModal();
+      };
+      
+      // 取消按鈕事件
+      document.getElementById('cancel-btn').onclick = closeModal;
+      
+      // 點擊背景關閉模態框
+      backdrop.onclick = closeModal;
+    }
   }
 });
 
@@ -572,8 +659,7 @@ function batchReplace(matchedRows) {
     const cells = row.getElementsByTagName('td');
     if (cells.length < 4) return;
 
-    // 記錄修改內容
-    const changes = [];
+    // 記錄舊值
     const oldValues = {
       content: cells[0].textContent.trim(),
       value1: cells[1].textContent.trim(),
@@ -581,38 +667,48 @@ function batchReplace(matchedRows) {
       value3: cells[3].textContent.trim()
     };
 
-    // 只替換有填寫新值的欄位，且只在值真的改變時才標記
-    if (replaceValues.content && replaceValues.content !== oldValues.content) {
-      cells[0].textContent = replaceValues.content;
-      cells[0].classList.add('modified-cell');
-      changes.push(`商品名稱: ${oldValues.content} -> ${replaceValues.content}`);
-    }
-    if (replaceValues.value1 && replaceValues.value1 !== oldValues.value1) {
-      cells[1].textContent = replaceValues.value1;
-      cells[1].classList.add('modified-cell');
-      changes.push(`數量: ${oldValues.value1} -> ${replaceValues.value1}`);
-    }
-    if (replaceValues.value2 && replaceValues.value2 !== oldValues.value2) {
-      cells[2].textContent = replaceValues.value2;
-      cells[2].classList.add('modified-cell');
-      changes.push(`單價: ${oldValues.value2} -> ${replaceValues.value2}`);
-    }
-    if (replaceValues.value3 && replaceValues.value3 !== oldValues.value3) {
-      cells[3].textContent = replaceValues.value3;
-      cells[3].classList.add('modified-cell');
-      changes.push(`金額: ${oldValues.value3} -> ${replaceValues.value3}`);
-    }
+    // 檢查是否有實際修改
+    let hasChanges = false;
+    if (replaceValues.content && replaceValues.content !== oldValues.content) hasChanges = true;
+    if (replaceValues.value1 && replaceValues.value1 !== oldValues.value1) hasChanges = true;
+    if (replaceValues.value2 && replaceValues.value2 !== oldValues.value2) hasChanges = true;
+    if (replaceValues.value3 && replaceValues.value3 !== oldValues.value3) hasChanges = true;
 
-    // 只有在有實際修改時才記錄修改歷史
-    if (changes.length > 0) {
-      const orderId = getOrderId(row);
-      if (!orderId.startsWith('未知訂單')) {
-        changeLog.push({
-          orderId: orderId,
-          timestamp: new Date().toLocaleString(),
-          changes: changes
-        });
+    if (hasChanges) {
+      // 修改單元格內容
+      if (replaceValues.content && replaceValues.content !== oldValues.content) {
+        cells[0].textContent = replaceValues.content;
+        cells[0].classList.add('modified-cell');
       }
+      if (replaceValues.value1 && replaceValues.value1 !== oldValues.value1) {
+        cells[1].textContent = replaceValues.value1;
+        cells[1].classList.add('modified-cell');
+      }
+      if (replaceValues.value2 && replaceValues.value2 !== oldValues.value2) {
+        cells[2].textContent = replaceValues.value2;
+        cells[2].classList.add('modified-cell');
+      }
+      if (replaceValues.value3 && replaceValues.value3 !== oldValues.value3) {
+        cells[3].textContent = replaceValues.value3;
+        cells[3].classList.add('modified-cell');
+      }
+
+      // 使用新的記錄函數記錄整行修改
+      const orderId = getOrderId(row);
+      // 創建記錄數據
+      const updateData = {
+        oldContent: oldValues.content,
+        newContent: replaceValues.content || oldValues.content,
+        oldValue1: oldValues.value1,
+        newValue1: replaceValues.value1 || oldValues.value1,
+        oldValue2: oldValues.value2,
+        newValue2: replaceValues.value2 || oldValues.value2,
+        oldValue3: oldValues.value3,
+        newValue3: replaceValues.value3 || oldValues.value3
+      };
+      
+      // 記錄修改
+      recordOrderItemChange('update', updateData, orderId);
     }
   });
 
@@ -774,5 +870,152 @@ function getOrderId(row) {
   } catch (error) {
     console.error('獲取訂單編號時發生錯誤:', error);
     return '未知訂單4';
+  }
+}
+
+// 添加頁尾編輯按鈕功能
+function addPagerEditButtons() {
+  // 尋找具有 pager text-right 類的元素
+  const pagerElements = document.querySelectorAll('.pager.text-right, .pager, .text-right');
+  
+  pagerElements.forEach(pager => {
+    // 為元素添加編輯屬性，在編輯模式下生效
+    pager.setAttribute('data-editable', 'pager');
+    
+    // 添加點擊事件
+    pager.addEventListener('click', function(e) {
+      // 只在單筆編輯模式下響應
+      if (editMode === 'single') {
+        // 防止事件冒泡
+        e.stopPropagation();
+        showPagerEditModal(this);
+      }
+    });
+  });
+}
+
+// 顯示頁尾編輯對話框
+function showPagerEditModal(pagerElement) {
+  // 獲取訂單ID
+  const orderId = getOrderIdFromPage();
+  
+  // 獲取當前內容
+  const originalContent = pagerElement.innerHTML;
+  const plainTextContent = pagerElement.innerText.trim();
+  
+  // 創建背景和模態框
+  const backdrop = createBackdrop();
+  const modal = document.createElement('div');
+  modal.className = 'edit-modal pager-edit-modal';
+  modal.innerHTML = `
+    <h3>編輯頁尾內容</h3>
+    <input type="hidden" id="pager-order-id" value="${orderId}" readonly>
+    <div class="input-group pager-edit-group">
+      <label for="pager-content-input">內容：</label>
+      <textarea id="pager-content-input" rows="4" style="width: 100%; resize: vertical;">${plainTextContent}</textarea>
+    </div>
+    <div class="button-group">
+      <button id="pager-save-btn">保存</button>
+      <button id="pager-cancel-btn">取消</button>
+    </div>
+  `;
+  
+  document.body.appendChild(backdrop);
+  document.body.appendChild(modal);
+  
+  // 保存按鈕事件
+  document.getElementById('pager-save-btn').onclick = function() {
+    const newContent = document.getElementById('pager-content-input').value.trim();
+    
+    if (newContent !== plainTextContent) {
+      // 保留原有的HTML結構和類，但更新顯示的文本內容
+      const updatedContent = updateTextInHTML(originalContent, newContent);
+      pagerElement.innerHTML = updatedContent;
+      
+      // 標記為已修改
+      pagerElement.classList.add('modified-cell');
+      
+      // 記錄修改
+      recordPagerChange(plainTextContent, newContent, orderId);
+    }
+    
+    // 關閉模態框
+    closePagerEditModal();
+  };
+  
+  // 取消按鈕事件
+  document.getElementById('pager-cancel-btn').onclick = closePagerEditModal;
+  backdrop.onclick = closePagerEditModal;
+}
+
+// 更新HTML中的文本，保留原有的HTML結構
+function updateTextInHTML(originalHTML, newText) {
+  // 檢查是否為簡單文本或有編輯按鈕
+  if (originalHTML.indexOf('<button') >= 0) {
+    // 提取編輯按鈕，保留它
+    const editButtonMatch = originalHTML.match(/<button[^>]*class="pager-edit-btn"[^>]*>.*?<\/button>/);
+    const editButton = editButtonMatch ? editButtonMatch[0] : '';
+    
+    // 使用新文本加上編輯按鈕
+    return newText + ' ' + editButton;
+  }
+  
+  // 如果是簡單的HTML，直接替換文本
+  return newText;
+}
+
+// 記錄頁尾修改
+function recordPagerChange(oldContent, newContent, orderId) {
+  if (!orderId || orderId.startsWith('未知訂單')) {
+    console.warn('無法記錄修改：找不到有效的訂單編號');
+    return;
+  }
+  
+  // 添加到修改記錄
+  changeLog.push({
+    orderId: orderId,
+    timestamp: new Date().toLocaleString(),
+    changes: [`頁尾內容: ${oldContent} -> ${newContent}`]
+  });
+  
+  // 更新修改記錄視窗
+  updateChangeLog();
+}
+
+// 關閉頁尾編輯模態框
+function closePagerEditModal() {
+  const modal = document.querySelector('.pager-edit-modal');
+  const backdrop = document.querySelector('.modal-backdrop');
+  if (modal) modal.remove();
+  if (backdrop) backdrop.remove();
+}
+
+// 從頁面獲取訂單編號
+function getOrderIdFromPage() {
+  try {
+    // 從不同位置嘗試獲取訂單編號
+    const infoElements = document.querySelectorAll('.info');
+    
+    for (let i = 0; i < infoElements.length; i++) {
+      const infoText = infoElements[i].textContent.trim();
+      const orderIdMatch = infoText.match(/\d+(MB|PC)\d+/i);
+      if (orderIdMatch) return orderIdMatch[0];
+    }
+    
+    // 如果上面找不到，嘗試從標題或其他地方找
+    const titleElements = document.querySelectorAll('h1, h2, h3, .title');
+    for (let i = 0; i < titleElements.length; i++) {
+      const titleText = titleElements[i].textContent.trim();
+      const orderIdMatch = titleText.match(/\d+(MB|PC)\d+/i);
+      if (orderIdMatch) return orderIdMatch[0];
+    }
+    
+    // 最後嘗試從整個頁面內容中查找
+    const bodyText = document.body.textContent;
+    const orderIdMatch = bodyText.match(/\d+(MB|PC)\d+/i);
+    return orderIdMatch ? orderIdMatch[0] : '未知訂單';
+  } catch (error) {
+    console.error('獲取訂單編號時發生錯誤:', error);
+    return '未知訂單';
   }
 } 
