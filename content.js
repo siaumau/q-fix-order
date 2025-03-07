@@ -83,7 +83,9 @@ function createChangeLogModal() {
   modal.innerHTML = `
     <div class="change-log-header">
       <h3>修改記錄 <span class="change-log-count"></span></h3>
-      <button id="download-log-btn" class="download-btn" style="display: none;">下載記錄</button>
+      <div class="download-buttons">
+        <button id="download-log-btn" class="download-btn" style="display: none;">下載內容</button>
+      </div>
     </div>
     <div id="change-log-content" class="change-log-content"></div>
   `;
@@ -92,7 +94,7 @@ function createChangeLogModal() {
   setTimeout(() => {
     const downloadBtn = modal.querySelector('#download-log-btn');
     if (downloadBtn) {
-      downloadBtn.onclick = downloadChangeLog;
+      downloadBtn.onclick = () => downloadChangeLog();
       downloadBtn.style.display = changeLog.length > 0 ? 'inline-block' : 'none';
     }
   }, 0);
@@ -130,11 +132,6 @@ function updateChangeLog() {
   }
   notification.textContent = changeLog.length;
   notification.style.display = changeLog.length > 0 ? 'block' : 'none';
-
-  let downloadbtnSHOW = document.querySelector('.download-btn');
-  if (downloadbtnSHOW) {
-    downloadbtnSHOW.style.display = changeLog.length > 0 ? 'block' : 'none';
-  }
 
   // 更新下載按鈕顯示狀態
   const downloadBtn = document.getElementById('download-log-btn');
@@ -277,6 +274,17 @@ document.addEventListener('click', function(e) {
           
           // 記錄刪除操作
           recordOrderItemChange('delete', deleteData, orderId);
+          
+          // 找到包含該行的 invoice-section
+          const invoiceSection = row.closest('.invoice-section');
+          if (invoiceSection) {
+            // 在移除行之前，創建一個隱藏的標記元素
+            const marker = document.createElement('div');
+            marker.className = 'modified-cell deleted-row-marker';
+            marker.style.display = 'none';
+            // 將標記元素添加到 invoice-section
+            invoiceSection.appendChild(marker);
+          }
           
           // 移除該行
           row.remove();
@@ -749,9 +757,10 @@ function downloadChangeLog() {
     document.body.removeChild(logLink);
     URL.revokeObjectURL(logLink.href);
 
-    // 下載完整的 HTML 頁面
-    // 創建一個新的文檔副本
-    const clonedDoc = document.cloneNode(true);
+    // 創建一個新的文檔副本用於完整內容
+    const fullDoc = document.cloneNode(true);
+    // 創建一個新的文檔副本用於修改內容
+    const modifiedDoc = document.cloneNode(true);
     
     // 移除所有插件添加的元素
     const elementsToRemove = [
@@ -764,29 +773,44 @@ function downloadChangeLog() {
     ];
 
     elementsToRemove.forEach(selector => {
-      const elements = clonedDoc.querySelectorAll(selector);
-      elements.forEach(el => el.remove());
+      const fullElements = fullDoc.querySelectorAll(selector);
+      const modifiedElements = modifiedDoc.querySelectorAll(selector);
+      fullElements.forEach(el => el.remove());
+      modifiedElements.forEach(el => el.remove());
     });
 
-    // 保留修改標記的樣式
-    const styleElement = document.createElement('style');
-    styleElement.textContent = `
-      .modified-cell { color: #0097AA !important; font-weight: bold; }
-    `;
-    clonedDoc.head.appendChild(styleElement);
+    // 在修改內容的文檔中移除未修改的 invoice-section
+    const sections = modifiedDoc.querySelectorAll('.invoice-section');
+    sections.forEach(section => {
+      const hasModifiedCells = section.querySelector('.modified-cell, .deleted-row-marker');
+      if (!hasModifiedCells) {
+        section.remove();
+      } else {
+        // 移除標記元素
+        const markers = section.querySelectorAll('.deleted-row-marker');
+        markers.forEach(marker => marker.remove());
+      }
+    });
 
-    // 獲取完整的 HTML 內容
-    const htmlContent = clonedDoc.documentElement.outerHTML;
+    // 下載完整內容 HTML
+    const fullHtmlBlob = new Blob([fullDoc.documentElement.outerHTML], { type: 'text/html;charset=utf-8' });
+    const fullHtmlLink = document.createElement('a');
+    fullHtmlLink.href = URL.createObjectURL(fullHtmlBlob);
+    fullHtmlLink.download = `訂單內容_${dateString}.html`;
+    document.body.appendChild(fullHtmlLink);
+    fullHtmlLink.click();
+    document.body.removeChild(fullHtmlLink);
+    URL.revokeObjectURL(fullHtmlLink.href);
 
-    // 下載 HTML
-    const htmlBlob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-    const htmlLink = document.createElement('a');
-    htmlLink.href = URL.createObjectURL(htmlBlob);
-    htmlLink.download = `訂單內容_${dateString}.html`;
-    document.body.appendChild(htmlLink);
-    htmlLink.click();
-    document.body.removeChild(htmlLink);
-    URL.revokeObjectURL(htmlLink.href);
+    // 下載修改內容 HTML
+    const modifiedHtmlBlob = new Blob([modifiedDoc.documentElement.outerHTML], { type: 'text/html;charset=utf-8' });
+    const modifiedHtmlLink = document.createElement('a');
+    modifiedHtmlLink.href = URL.createObjectURL(modifiedHtmlBlob);
+    modifiedHtmlLink.download = `修改內容_${dateString}.html`;
+    document.body.appendChild(modifiedHtmlLink);
+    modifiedHtmlLink.click();
+    document.body.removeChild(modifiedHtmlLink);
+    URL.revokeObjectURL(modifiedHtmlLink.href);
 
   } catch (error) {
     console.error('生成檔案時發生錯誤:', error);

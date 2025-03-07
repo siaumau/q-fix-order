@@ -179,6 +179,11 @@
   margin: 0;
 }
 
+.download-buttons {
+  display: flex;
+  gap: 8px;
+}
+
 .download-btn {
   background-color: #4CAF50;
   color: white;
@@ -187,10 +192,26 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
+  white-space: nowrap;
+}
+
+.download-modified-btn {
+  background-color: #0097AA;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 .download-btn:hover {
   background-color: #45a049;
+}
+
+.download-modified-btn:hover {
+  background-color: #015763;
 }
 
 /* 修改列印樣式規則 */
